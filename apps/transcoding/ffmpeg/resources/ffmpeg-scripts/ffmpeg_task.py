@@ -45,25 +45,28 @@ def do_extract(input_file,
     return results
 
 
-def do_split(path_to_stream, parts):
+def do_split(path_to_stream, parts, target_container=None):
     video_metadata = commands.get_metadata_json(path_to_stream)
     video_length = meta.get_duration(video_metadata)
     format_demuxer = meta.get_format(video_metadata)
-    container = formats.get_safe_intermediate_format_for_demuxer(format_demuxer)
+    intermediate_container = formats.\
+        get_safe_intermediate_format_for_demuxer(format_demuxer)
 
     segment_list_path = commands.split_video(
         path_to_stream,
         OUTPUT_DIR,
         video_length / parts,
-        container)
+        intermediate_container)
+
+    muxer_info = commands.query_muxer_info(target_container)
 
     with open(segment_list_path) as segment_list_file:
         segment_filenames = segment_list_file.read().splitlines()
-
     results = {
         "main_list": segment_list_path,
         "segments": [{"video_segment": s} for s in segment_filenames],
         "metadata": video_metadata,
+        "muxer_info": muxer_info,
     }
 
     results_file = os.path.join(OUTPUT_DIR, "split-results.json")
@@ -73,7 +76,13 @@ def do_split(path_to_stream, parts):
     return results
 
 
-def do_extract_and_split(input_file, parts, container=None):
+# pylint: disable-msg=too-many-arguments, too-many-locals
+def do_extract_and_split(
+        input_file,
+        parts,
+        intermediate_container=None,
+        target_container=None
+):
     input_basename = os.path.basename(input_file)
     [input_stem, input_extension] = os.path.splitext(input_basename)
 
@@ -84,13 +93,21 @@ def do_extract_and_split(input_file, parts, container=None):
     extract_results = do_extract(input_file,
                                  intermediate_file,
                                  ['v'],
-                                 container)
+                                 intermediate_container)
 
-    split_results = do_split(intermediate_file, parts)
+    target_container_enum = formats.Container(target_container)
+    if target_container_enum.is_exclusive_demuxer():
+        video_metadata = commands.get_metadata_json(input_file)
+        format_demuxer = meta.get_format(video_metadata)
+        target_container = formats. \
+            get_safe_intermediate_format_for_demuxer(format_demuxer)
+
+    split_results = do_split(intermediate_file, parts, target_container)
 
     results = {
         "main_list": split_results["main_list"],
         "segments": split_results["segments"],
+        "muxer_info": split_results["muxer_info"],
         "metadata": extract_results["metadata"],
     }
 
@@ -255,7 +272,8 @@ def run_ffmpeg(params):
     elif params['command'] == "split":
         do_split(
             params['path_to_stream'],
-            params['parts'])
+            params['parts'],
+            params.get('target_container'))
     elif params['command'] == "extract-and-split":
         do_extract_and_split(
             params['input_file'],
