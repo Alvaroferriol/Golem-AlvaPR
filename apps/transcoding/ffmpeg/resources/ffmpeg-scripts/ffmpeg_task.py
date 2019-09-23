@@ -21,19 +21,19 @@ class InvalidCommand(Exception):
 def do_extract(input_file,
                output_file,
                selected_streams,
-               container=None):
+               intermediate_container=None):
 
     video_metadata = commands.get_metadata_json(input_file)
-    if container is None:
+    if intermediate_container is None:
         format_demuxer = meta.get_format(video_metadata)
-        container = formats.\
+        intermediate_container = formats.\
             get_safe_intermediate_format_for_demuxer(format_demuxer)
 
     commands.extract_streams(
         input_file,
         output_file,
         selected_streams,
-        container)
+        intermediate_container)
 
     results = {
         "metadata": video_metadata,
