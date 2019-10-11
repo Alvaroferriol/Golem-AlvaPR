@@ -268,7 +268,7 @@ def run_ffmpeg(params):
             params['input_file'],
             params['output_file'],
             params['selected_streams'],
-            params.get('container'))
+            params.get('intermediate_container'))
     elif params['command'] == "split":
         do_split(
             params['path_to_stream'],
@@ -278,7 +278,8 @@ def run_ffmpeg(params):
         do_extract_and_split(
             params['input_file'],
             params['parts'],
-            params.get('container'))
+            params.get('intermediate_container'),
+            params.get('target_container'))
     elif params['command'] == "transcode":
         do_transcode(
             params['track'],
