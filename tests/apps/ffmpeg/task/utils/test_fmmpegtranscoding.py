@@ -43,7 +43,7 @@ class TestffmpegTranscoding(TempDirFixture):
                 chunks, _ = self.stream_operator.\
                     extract_video_streams_and_split(
                         self.RESOURCE_STREAM, parts, self.dir_manager,
-                        str(uuid.uuid4()))
+                        str(uuid.uuid4()), 'mp4')
                 self.assertEqual(len(chunks), parts)
 
     def test_extract_and_split_invalid_video(self):
@@ -52,7 +52,7 @@ class TestffmpegTranscoding(TempDirFixture):
                 os.path.join(self.RESOURCES,
                              'invalid_test_video2.mp4'),
                 1, self.dir_manager,
-                str(uuid.uuid4()))
+                str(uuid.uuid4()), 'mp4')
 
     def test_extract_split_merge_and_replace_video(self):
         parts = 2
@@ -64,7 +64,7 @@ class TestffmpegTranscoding(TempDirFixture):
 
         chunks, _ = self.stream_operator.extract_video_streams_and_split(
             self.RESOURCE_STREAM, parts,
-            self.dir_manager, task_id)
+            self.dir_manager, task_id, 'mp4')
         self.assertEqual(len(chunks), parts)
         self.assertEqual(
             set(os.path.splitext(chunk)[1] for chunk in chunks),

@@ -44,7 +44,8 @@ class StreamOperator:
                                         input_file_on_host: str,
                                         parts: int,
                                         dir_manager: DirManager,
-                                        task_id: str):
+                                        task_id: str,
+                                        target_container: str):
 
         host_dirs = {
             'tmp': dir_manager.get_task_temporary_dir(task_id),
@@ -69,6 +70,7 @@ class StreamOperator:
         extra_data = {
             'entrypoint': FFMPEG_ENTRYPOINT,
             'command': Commands.EXTRACT_AND_SPLIT.value[0],
+            'target_container': target_container,
             'input_file': input_file_in_container,
             'parts': parts,
         }
