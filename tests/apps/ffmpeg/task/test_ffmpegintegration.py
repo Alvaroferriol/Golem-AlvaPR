@@ -2,6 +2,7 @@ import logging
 import os
 
 import pytest
+from ffmpeg_tools import validation
 from ffmpeg_tools.codecs import AudioCodec
 from ffmpeg_tools.codecs import VideoCodec
 from ffmpeg_tools.formats import Container
@@ -168,8 +169,8 @@ class TestFfmpegIntegration(FfmpegIntegrationBase):
     @remove_temporary_dirtree_if_test_passed
     def test_split_and_merge_with_frame_rate_change(self, video, frame_rate):
         source_codec = video["video_codec"]
-        frame_rate_as_str_or_int = set([frame_rate, str(frame_rate)])
-        assert frame_rate_as_str_or_int & list_supported_frame_rates() != set()
+        normalized_frame_rate = validation.normalize_frame_rate(frame_rate)
+        assert normalized_frame_rate in list_supported_frame_rates()
 
         operation = SimulatedTranscodingOperation(
             task_executor=self,
