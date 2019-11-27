@@ -11,6 +11,10 @@ from golem_task_api import ProviderAppClient
 
 from apps.core.benchmark.benchmarkrunner import BenchmarkRunner
 from apps.core.task.coretaskstate import TaskDesc
+from golem.apps.ssl import (
+    create_task_api_ssl_context,
+    setup_app_ssl_context_files
+)
 from golem.core.threads import callback_wrapper
 from golem.environments.environment import Environment as DefaultEnvironment
 
@@ -210,7 +214,11 @@ class AppBenchmarkManager:
         )
 
         try:
-            app_client = await ProviderAppClient.create(task_api_service)
+            setup_app_ssl_context_files(shared_dir)
+            ssl_context = create_task_api_ssl_context(shared_dir)
+            app_client = await ProviderAppClient.create(
+                task_api_service,
+                ssl_context=ssl_context)
             return await app_client.run_benchmark()
         finally:
             shutil.rmtree(shared_dir)

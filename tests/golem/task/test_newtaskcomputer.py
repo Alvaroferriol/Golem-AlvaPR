@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from unittest import mock
 
+import pytest
 from golem_messages.message import ComputeTaskDef
 from golem_task_api import ProviderAppClient, TaskApiService
 from golem_task_api.envs import DOCKER_CPU_ENV_ID
@@ -14,10 +15,20 @@ from golem.core.deferred import deferred_from_future
 from golem.core.statskeeper import IntStatsKeeper
 from golem.envs import Runtime
 from golem.envs.docker.cpu import DockerCPUConfig
+from golem.task import taskcomputer
 from golem.task.envmanager import EnvironmentManager
 from golem.task.taskcomputer import NewTaskComputer
 from golem.testutils import TempDirFixture
 from tests.utils.asyncio import TwistedAsyncioTestCase
+
+
+@pytest.fixture(autouse=True)
+def disable_task_api_ssl_context(monkeypatch):
+    monkeypatch.setattr(
+        taskcomputer,
+        'create_task_api_ssl_context',
+        lambda *_: None)
+    yield
 
 
 class NewTaskComputerTestBase(TwistedAsyncioTestCase, TempDirFixture):
@@ -272,7 +283,7 @@ class TestCompute(NewTaskComputerTestBase):
 
 class TestCreateClientAndCompute(NewTaskComputerTestBase):
     @defer.inlineCallbacks
-    def test_client_client_and_compute(self):
+    def test_create_client_and_compute(self):
         # Given
         service = mock.Mock(spec_set=TaskApiService)
         task_api_service_cls = self._patch_async('EnvironmentTaskApiService')
@@ -310,7 +321,9 @@ class TestCreateClientAndCompute(NewTaskComputerTestBase):
             shared_dir=self.work_dir / self.env_id / self.task_id,
             payload_builder=self.env_manager.payload_builder()
         )
-        provider_app_client_cls.create.assert_called_once_with(service)
+        provider_app_client_cls.create.assert_called_once_with(
+            service,
+            ssl_context=None)
         client.compute.assert_called_once_with(
             task_id=self.task_id,
             subtask_id=self.subtask_id,

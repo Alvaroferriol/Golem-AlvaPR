@@ -1,15 +1,27 @@
 import types
 from unittest.mock import Mock, patch
 
+import pytest
+
 from apps.appsmanager import AppsManager
 from golem.envs import BenchmarkResult
 from golem.environments.environment import Environment as DefaultEnvironment
 from golem.model import Performance
+from golem.task import benchmarkmanager
 from golem.task.benchmarkmanager import BenchmarkManager
 from golem.testutils import DatabaseFixture, PEP8MixIn
 
 
 benchmarks_needed = BenchmarkManager.benchmarks_needed
+
+
+@pytest.fixture(autouse=True)
+def disable_task_api_ssl_context(monkeypatch):
+    monkeypatch.setattr(
+        benchmarkmanager,
+        'create_task_api_ssl_context',
+        lambda *_: None)
+    yield
 
 
 class MockThread:
