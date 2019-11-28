@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 RETRIES = 3
 
+
 class ProviderProxy(HTTPProvider):
 
     def __init__(self, initial_addr_list) -> None:
@@ -22,23 +23,36 @@ class ProviderProxy(HTTPProvider):
         self._cur_errors = 0
 
     def make_request(self, method, params):
-        logger.debug('ProviderProxy.make_request(%r, %r)', method, params)
+        import threading
+        import time
+        ts = time.time()
+        thread = threading.current_thread()
 
+        logger.debug('ProviderProxy.make_request(%r, %r) at %s in %r', method, params, ts, thread)
         response = None
         while response is None:
             try:
                 response = self.provider.make_request(method, params)
-                logger.debug('ProviderProxy.make_request(..) -- result = %r',
-                             response)
+                logger.debug(
+                    'GETH %s: request successful %s (%r, %r) -- result = %r',
+                    ts,
+                    self.provider.endpoint_uri, method, params, response
+                )
             except (ConnectionError, ValueError,
                     socket.error, CannotHandleRequest) as exc:
-                logger.warning(
-                    'GETH: request failure, retrying: %s',
-                    exc,
-                )
                 self._cur_errors += 1
-                if self._cur_errors % self._retries == 0:
-                    self._handle_remote_rpc_provider_failure()
+                retry = self._cur_errors < self._retries
+                logger.debug(
+                    "GETH %s: request failure%s"
+                    ". %s (%r, %r), error='%s', "
+                    'cur_errors=%s, retries=%s',
+                    ts,
+                    ', retrying' if retry else '',
+                    self.provider.endpoint_uri, method, params, exc,
+                    self._cur_errors, self._retries,
+                )
+                if not retry:
+                    self._handle_remote_rpc_provider_failure(method, ts)
                     self.reset()
             except Exception as exc:
                 logger.error("Unknown exception %r", exc)
@@ -54,10 +68,19 @@ class ProviderProxy(HTTPProvider):
         logger.info('GETH: connecting to remote RPC interface at %s', addr)
         return HTTPProvider(addr)
 
-    def _handle_remote_rpc_provider_failure(self):
+    def _handle_remote_rpc_provider_failure(self, method, ts):
         if not self.addr_list:
-            raise Exception("GETH: No more addresses to try, failed to connect")
-        logger.warning('GETH: reconnecting to another provider')
+            raise Exception(
+                "GETH %s: No more addresses to try, request failed. method='%s'",
+                ts,
+                method
+            )
+        logger.warning(
+            "GETH %s: '%s' request failed on '%s', "
+            "reconnecting to another provider.",
+            ts,
+            method, self.provider.endpoint_uri,
+        )
         self.provider = self._create_remote_rpc_provider()
 
     def reset(self):
