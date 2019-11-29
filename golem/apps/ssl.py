@@ -1,4 +1,5 @@
 import logging
+import shutil
 import ssl
 from ipaddress import IPv4Address
 from pathlib import Path
@@ -41,12 +42,20 @@ def setup_task_api_ssl_context(directory: Path):
     )
 
 
-def setup_app_ssl_context_files(directory: Path):
+def setup_app_ssl_context_files(
+        shared_directory: Path
+) -> None:
+    if not SSLContextConfig.key_and_cert_directory:
+        raise RuntimeError("Task API SSL context was not set up")
     setup_ssl_context_files(
-        directory,
+        shared_directory,
         key_file_name=api.ssl.SERVER_KEY_FILE_NAME,
         cert_file_name=api.ssl.SERVER_CERT_FILE_NAME,
         label="App",
+    )
+    shutil.copy(
+        SSLContextConfig.key_and_cert_directory / api.ssl.CLIENT_CERT_FILE_NAME,
+        shared_directory
     )
 
 
