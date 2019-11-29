@@ -425,7 +425,11 @@ def enqueue_new_task(client, task, force=False) \
 
 def _create_task_error(e, _self, task_dict, *args, **_kwargs) \
         -> typing.Tuple[None, typing.Union[str, typing.Dict]]:
-    _self.client.task_manager.task_creation_failed(task_dict.get('id'), str(e))
+    task_id = task_dict.get('id')
+    if task_id:
+        _self.client.task_manager.task_creation_failed(task_id, str(e))
+    else:
+        logger.error("Cannot create task %r: %s", task_dict, e)
 
     if hasattr(e, 'to_dict'):
         return None, rpc_utils.int_to_string(e.to_dict())

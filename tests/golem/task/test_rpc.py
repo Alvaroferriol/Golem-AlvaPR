@@ -112,11 +112,14 @@ class ProviderBase(test_client.TestClientBase):
 @mock.patch('golem.network.p2p.local_node.LocalNode.collect_network_info')
 @mock.patch('golem.task.rpc.enqueue_new_task')
 @mock.patch(
-    'golem.task.taskmanager.TaskManager.create_task',
-    side_effect=lambda *_: mock.MagicMock(
-        header=mock.MagicMock(task_id='task_id'),
-    ),
-)
+    'golem.task.taskmanager.TaskManager.create_task_definition',
+    side_effect=lambda *_: (
+        Mock(task_id="task_id"),
+        Mock(side_effect=lambda *_: Mock(
+            build=Mock(side_effect=lambda: Mock(
+                header=Mock(task_id="task_id")))
+        ))
+    ))
 class TestCreateTask(ProviderBase, TestClientBase):
     @staticmethod
     def _get_task_dict(**data):
@@ -194,6 +197,24 @@ class TestCreateTask(ProviderBase, TestClientBase):
         self.assertEqual(error['error_msg'], 'Not enough funds available.\n'
                                              'Required GNT: '
                                              '0.166667, available: 0.000000\n')
+
+    @mock.patch('golem.task.rpc.ClientProvider.'
+                '_validate_enough_funds_to_pay_for_task')
+    @mock.patch('golem.task.taskmanager.TaskManager.initialize_task',
+                side_effect=Exception("initialization failed"))
+    def test_create_task_fail_on_initialize(self, *_):
+        def execute(f, *args, **kwargs):
+            return defer.succeed(f(*args, **kwargs))
+        with mock.patch('golem.core.deferred.deferToThread', execute):
+            result = self.provider.create_task(self._get_task_dict())
+
+        task_manager = self.client.task_server.task_manager
+        assert len(task_manager.tasks) == 1
+        assert len(task_manager.tasks_states) == 1
+        task_state = task_manager.tasks_states["task_id"]
+        assert task_state.status == taskstate.TaskStatus.errorCreating
+        assert task_state.status_message == "initialization failed"
+        assert result == (None, "initialization failed")
 
 
 class TestCreateTaskDryRun(ProviderBase):
@@ -861,16 +882,14 @@ class TestExceptionPropagation(ProviderBase):
             )
 
     @mock.patch('twisted.internet.reactor', mock.Mock())
-    @mock.patch("golem.task.taskmanager.TaskManager.task_creation_failed")
     @mock.patch("golem.task.rpc.prepare_and_validate_task_dict")
-    def test_create_task(self, mock_method, creation_failed, *_):
+    def test_create_task(self, mock_method, *_):
         t = dummytaskstate.DummyTaskDefinition()
         t.name = "test"
         mock_method.side_effect = Exception("Test")
 
         result = self.provider.create_task(t.to_dict())
         mock_method.assert_called()
-        creation_failed.assert_called()
         self.assertEqual(result, (None, "Test"))
 
     def test_restart_task(self, *_):

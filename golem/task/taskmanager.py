@@ -195,6 +195,7 @@ class TaskManager(TaskEventListener):
             logger.info("Creating task. type=%r, id=%s", type(task), task_id)
             self.tasks[task_id] = task
             self.tasks_states[task_id] = TaskState(task)
+            dictionary['id'] = task_id
 
         return task
 
